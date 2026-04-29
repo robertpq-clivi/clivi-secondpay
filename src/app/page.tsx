@@ -151,7 +151,7 @@ export default function Dashboard() {
 
         {hitLimit && (
           <div className="rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
-            ⚠️ Se alcanzó el límite de 6,000 facturas por estado. Puede haber clientes no visibles — sube <code>MAX_PAGES</code> en <code>chargebee.ts</code>.
+            ⚠️ Hay más de 6,000 facturas no pagadas en Chargebee. El dashboard muestra las 6,000 más recientes — clientes con suscripción cancelada hace más de ~6 meses pueden no aparecer.
           </div>
         )}
 
