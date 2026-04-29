@@ -43,15 +43,15 @@ export async function GET() {
       }
     })
 
-    enriched.sort((a, b) => {
-      if (!a.hubspotContact && b.hubspotContact) return -1
-      if (a.hubspotContact && !b.hubspotContact) return 1
-      return (b.invoiceCount - a.invoiceCount) || ((b.createdAt ?? 0) - (a.createdAt ?? 0))
-    })
+    const active = enriched.filter(p => p.hubspotContact !== null)
+
+    active.sort((a, b) =>
+      (b.invoiceCount - a.invoiceCount) || ((b.createdAt ?? 0) - (a.createdAt ?? 0))
+    )
 
     if (hitLimit) console.warn('[/api/patients] Hit invoice fetch limit — some customers may be missing. Increase MAX_PAGES in chargebee.ts.')
 
-    return NextResponse.json({ patients: enriched, total: enriched.length, hitLimit })
+    return NextResponse.json({ patients: active, total: active.length, hitLimit })
   } catch (err) {
     console.error('[/api/patients]', err)
     return NextResponse.json({ error: 'Error al obtener pacientes' }, { status: 500 })
