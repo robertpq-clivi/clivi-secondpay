@@ -15,7 +15,8 @@ function buildQuery(params: Record<string, string>): string {
 const MAX_PAGES = 60 // safety cap: 60 × 100 = 6000 invoices per status
 
 // Chargebee returns next_offset as a JSON array — must be stringified before URL-encoding.
-async function fetchAll<T>(path: string, params: Record<string, string> = {}): Promise<T[]> {
+// Returns { results, hitLimit } so callers know if there may be more data.
+async function fetchAll<T>(path: string, params: Record<string, string> = {}): Promise<{ results: T[]; hitLimit: boolean }> {
   const results: T[] = []
   let offset: string | undefined
   let pages = 0
@@ -31,7 +32,7 @@ async function fetchAll<T>(path: string, params: Record<string, string> = {}): P
     pages++
   } while (offset && pages < MAX_PAGES)
 
-  return results
+  return { results, hitLimit: pages >= MAX_PAGES && !!offset }
 }
 
 export interface InvoiceRow {
@@ -60,11 +61,14 @@ const MAX_CUSTOMERS = 500
 
 // Fetches ALL overdue invoices (no cap), groups by customer with accurate counts.
 // Caps displayed customers at MAX_CUSTOMERS sorted by invoiceCount desc, then most recent date.
-export async function getOverdueInvoices(): Promise<InvoiceRow[]> {
-  const [paymentDue, notPaid] = await Promise.all([
+export async function getOverdueInvoices(): Promise<{ rows: InvoiceRow[]; hitLimit: boolean }> {
+  const [pd, np] = await Promise.all([
     fetchAll<{ invoice: any }>('/invoices', { 'status[is]': 'payment_due', 'sort_by[desc]': 'date' }),
     fetchAll<{ invoice: any }>('/invoices', { 'status[is]': 'not_paid', 'sort_by[desc]': 'date' }),
   ])
+  const hitLimit = pd.hitLimit || np.hitLimit
+  const paymentDue = pd.results
+  const notPaid = np.results
 
   interface CustomerEntry {
     invoice: any       // representative: most recent / not_paid preferred
@@ -104,7 +108,7 @@ export async function getOverdueInvoices(): Promise<InvoiceRow[]> {
     return (b.invoice.date ?? 0) - (a.invoice.date ?? 0)
   })
 
-  return sorted.slice(0, MAX_CUSTOMERS).map(([customerId, { invoice: inv, count, totalAmountDue, oldestDate }]) => ({
+  const rows = sorted.slice(0, MAX_CUSTOMERS).map(([customerId, { invoice: inv, count, totalAmountDue, oldestDate }]) => ({
     customerId,
     subscriptionId: inv.subscription_id,
     invoiceStatus: inv.status as 'payment_due' | 'not_paid',
@@ -118,6 +122,8 @@ export async function getOverdueInvoices(): Promise<InvoiceRow[]> {
     chargebeeUrl: `https://${CHARGEBEE_SITE}.chargebee.com/d/customers/${customerId}`,
     invoiceCount: count,
   }))
+
+  return { rows, hitLimit }
 }
 
 // Fetch customer details in batches of 20 — runs in parallel with HubSpot

@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   try {
     // Step 1: fetch ALL overdue invoices — accurate counts, no cap
-    const invoices = await getOverdueInvoices()
+    const { rows: invoices, hitLimit } = await getOverdueInvoices()
     const customerIds = invoices.map((i) => i.customerId)
 
     // Step 2: customer details + HubSpot in parallel
@@ -49,7 +49,9 @@ export async function GET() {
       return (b.invoiceCount - a.invoiceCount) || ((b.createdAt ?? 0) - (a.createdAt ?? 0))
     })
 
-    return NextResponse.json({ patients: enriched, total: enriched.length })
+    if (hitLimit) console.warn('[/api/patients] Hit invoice fetch limit — some customers may be missing. Increase MAX_PAGES in chargebee.ts.')
+
+    return NextResponse.json({ patients: enriched, total: enriched.length, hitLimit })
   } catch (err) {
     console.error('[/api/patients]', err)
     return NextResponse.json({ error: 'Error al obtener pacientes' }, { status: 500 })

@@ -74,6 +74,7 @@ export default function Dashboard() {
   const [patients, setPatients] = useState<Patient[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [hitLimit, setHitLimit] = useState(false)
   const [search, setSearch] = useState('')
   const [peFilter, setPeFilter] = useState<'all' | 'with' | 'without'>('all')
   const [renewalFilter, setRenewalFilter] = useState<'all' | '7' | '14' | '30'>('all')
@@ -91,6 +92,7 @@ export default function Dashboard() {
       .then((d) => {
         if (d.error) throw new Error(d.error)
         setPatients(d.patients)
+        setHitLimit(d.hitLimit ?? false)
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
@@ -144,6 +146,12 @@ export default function Dashboard() {
             <SummaryCard label="Total con error" value={patients.length} />
             <SummaryCard label="Con múltiples facturas" value={multiInvoiceTotal} highlight />
             <SummaryCard label="Con contacto HubSpot" value={withDeal} />
+          </div>
+        )}
+
+        {hitLimit && (
+          <div className="rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+            ⚠️ Se alcanzó el límite de 6,000 facturas por estado. Puede haber clientes no visibles — sube <code>MAX_PAGES</code> en <code>chargebee.ts</code>.
           </div>
         )}
 
