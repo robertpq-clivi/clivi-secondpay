@@ -12,10 +12,13 @@ function buildQuery(params: Record<string, string>): string {
     .join('&')
 }
 
-// Paginates all results — no cap. Each page is sequential (cursor-based), two statuses run in parallel.
+const MAX_PAGES = 60 // safety cap: 60 × 100 = 6000 invoices per status
+
+// Chargebee returns next_offset as a JSON array — must be stringified before URL-encoding.
 async function fetchAll<T>(path: string, params: Record<string, string> = {}): Promise<T[]> {
   const results: T[] = []
   let offset: string | undefined
+  let pages = 0
 
   do {
     const allParams = { limit: '100', ...params, ...(offset ? { offset } : {}) }
@@ -23,8 +26,10 @@ async function fetchAll<T>(path: string, params: Record<string, string> = {}): P
     if (!res.ok) throw new Error(`Chargebee error ${res.status}: ${await res.text()}`)
     const data = await res.json()
     results.push(...(data.list ?? []))
-    offset = data.next_offset
-  } while (offset)
+    const raw = data.next_offset
+    offset = raw ? (Array.isArray(raw) ? JSON.stringify(raw) : String(raw)) : undefined
+    pages++
+  } while (offset && pages < MAX_PAGES)
 
   return results
 }
