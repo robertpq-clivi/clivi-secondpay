@@ -1,6 +1,7 @@
 const HS_TOKEN = process.env.HUBSPOT_ACCESS_TOKEN!
 const BASE_URL = 'https://api.hubapi.com'
-const CUSTOMER_IN_DEBT_STAGE = '79426723'
+
+const ACTIVE_LIFECYCLE_STAGES = ['customer', 'evangelist', '79426723', '79657525']
 
 const headers = {
   Authorization: `Bearer ${HS_TOKEN}`,
@@ -46,6 +47,7 @@ export async function getDebtContacts(chargebeeIds: string[]): Promise<Map<strin
         filterGroups: [{
           filters: [
             { propertyName: 'chargebee_customer_id', operator: 'IN', values: batch },
+            { propertyName: 'lifecyclestage', operator: 'IN', values: ACTIVE_LIFECYCLE_STAGES },
           ],
         }],
         properties: ['chargebee_customer_id', 'lifecyclestage'],
